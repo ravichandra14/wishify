@@ -30,14 +30,32 @@ function App() {
   });
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  const handleLogin = (name: string, email: string) => {
-    setIsLoggedIn(true);
-    localStorage.setItem('wishify_logged_in', 'true');
-    setSettings((prev: any) => ({
-      ...prev,
-      userName: name,
-      userEmail: email
-    }));
+  const handleLogin = async (name: string, email: string) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsLoggedIn(true);
+        localStorage.setItem('wishify_logged_in', 'true');
+        setSettings((prev: any) => ({
+          ...prev,
+          userName: data.user.name,
+          userEmail: data.user.email
+        }));
+        triggerToast('Logged in successfully!');
+      } else {
+        setIsLoggedIn(true);
+        localStorage.setItem('wishify_logged_in', 'true');
+      }
+    } catch (err) {
+      console.warn('Backend offline, logging in locally.');
+      setIsLoggedIn(true);
+      localStorage.setItem('wishify_logged_in', 'true');
+    }
   };
 
   const handleLogout = () => {
@@ -114,6 +132,43 @@ function App() {
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Fetch all data from backend when logged in
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    
+    const fetchData = async () => {
+      try {
+        const contactsRes = await fetch('/api/contacts');
+        if (contactsRes.ok) {
+          const contactsData = await contactsRes.json();
+          setContacts(contactsData);
+        }
+        
+        const scheduledRes = await fetch('/api/scheduled');
+        if (scheduledRes.ok) {
+          const scheduledData = await scheduledRes.json();
+          setScheduledWishes(scheduledData);
+        }
+        
+        const historyRes = await fetch('/api/history');
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          setHistory(historyData.history || []);
+        }
+        
+        const settingsRes = await fetch('/api/settings');
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setSettings(settingsData);
+        }
+      } catch (err) {
+        console.error('Failed to load data from backend, using LocalStorage fallback:', err);
+      }
+    };
+    
+    fetchData();
+  }, [isLoggedIn]);
+
   // Save states to local storage on modification
   useEffect(() => {
     localStorage.setItem('wishify_contacts', JSON.stringify(contacts));
@@ -140,43 +195,102 @@ function App() {
   };
 
   // Contacts handlers
-  const handleSaveContact = (cData: Omit<Contact, 'id'> & { id?: string }) => {
+  const handleSaveContact = async (cData: Omit<Contact, 'id'> & { id?: string }) => {
     if (cData.id) {
       // Edit mode
       setContacts(prev => prev.map(c => c.id === cData.id ? { ...c, ...cData } as Contact : c));
+      try {
+        await fetch(`/api/contacts/${cData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cData)
+        });
+      } catch (err) {
+        console.warn('Backend offline, updated contact locally.');
+      }
     } else {
       // Add mode
-      const newContact: Contact = {
-        ...cData,
-        id: `c_${Date.now()}`
-      };
-      setContacts(prev => [newContact, ...prev]);
+      const localId = `c_${Date.now()}`;
+      const newContactLocal: Contact = { ...cData, id: localId };
+      setContacts(prev => [newContactLocal, ...prev]);
+
+      try {
+        const res = await fetch('/api/contacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cData)
+        });
+        if (res.ok) {
+          const savedContact = await res.json();
+          setContacts(prev => prev.map(c => c.id === localId ? savedContact : c));
+        }
+      } catch (err) {
+        console.warn('Backend offline, saved contact locally.');
+      }
     }
   };
 
-  const handleDeleteContact = (id: string) => {
+  const handleDeleteContact = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this contact? All scheduled wishes for them will remain in queue.')) {
       setContacts(prev => prev.filter(c => c.id !== id));
       triggerToast('Contact deleted.');
+      try {
+        await fetch(`/api/contacts/${id}`, {
+          method: 'DELETE'
+        });
+      } catch (err) {
+        console.warn('Backend offline, contact deleted locally.');
+      }
     }
   };
 
   // Scheduled Wishes handlers
-  const handleSaveSchedule = (sData: Omit<ScheduledWish, 'id' | 'status'> & { id?: string }) => {
+  const handleSaveSchedule = async (sData: Omit<ScheduledWish, 'id' | 'status'> & { id?: string }) => {
     if (sData.id) {
       setScheduledWishes(prev => prev.map(w => w.id === sData.id ? { ...w, ...sData } as ScheduledWish : w));
+      try {
+        await fetch(`/api/scheduled/${sData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sData)
+        });
+      } catch (err) {
+        console.warn('Backend offline, rescheduled locally.');
+      }
     } else {
-      const newSchedule: ScheduledWish = {
+      const localId = `s_${Date.now()}`;
+      const newScheduleLocal: ScheduledWish = {
         ...sData,
-        id: `s_${Date.now()}`,
+        id: localId,
         status: 'Scheduled'
       };
-      setScheduledWishes(prev => [newSchedule, ...prev]);
+      setScheduledWishes(prev => [newScheduleLocal, ...prev]);
+
+      try {
+        const res = await fetch('/api/scheduled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sData)
+        });
+        if (res.ok) {
+          const savedSchedule = await res.json();
+          setScheduledWishes(prev => prev.map(w => w.id === localId ? savedSchedule : w));
+        }
+      } catch (err) {
+        console.warn('Backend offline, scheduled locally.');
+      }
     }
   };
 
-  const handleDeleteSchedule = (id: string) => {
+  const handleDeleteSchedule = async (id: string) => {
     setScheduledWishes(prev => prev.filter(w => w.id !== id));
+    try {
+      await fetch(`/api/scheduled/${id}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      console.warn('Backend offline, scheduled wish deleted locally.');
+    }
   };
 
   const handleOpenReschedule = (wish: ScheduledWish) => {
@@ -194,21 +308,42 @@ function App() {
   };
 
   // History Logger helper
-  const handleSaveHistory = (
+  const handleSaveHistory = async (
     recipientName: string,
     content: string,
     wishType: 'AI Wish' | 'Greeting Card' | 'Written',
     cardConfig?: any
   ) => {
-    const newLog: HistoryItem = {
-      id: `h_${Date.now()}`,
+    const localId = `h_${Date.now()}`;
+    const newLogLocal: HistoryItem = {
+      id: localId,
       recipientName,
       wishType,
       date: new Date().toISOString().split('T')[0],
       content,
       cardConfig
     };
-    setHistory(prev => [newLog, ...prev]);
+    setHistory(prev => [newLogLocal, ...prev]);
+
+    try {
+      const res = await fetch('/api/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientName,
+          wishType,
+          date: new Date().toISOString().split('T')[0],
+          content,
+          cardConfig
+        })
+      });
+      if (res.ok) {
+        const savedHistory = await res.json();
+        setHistory(prev => prev.map(h => h.id === localId ? savedHistory : h));
+      }
+    } catch (err) {
+      console.warn('Backend offline, logged to history locally.');
+    }
   };
 
   // Navigation Pre-fill helper
@@ -216,6 +351,36 @@ function App() {
     setPreFilledContact(contact);
     setActiveTab('Create Birthday Wish');
     setIsOnLandingPage(false);
+  };
+
+  // CSV Import / Export handlers
+  const handleExportCSV = () => {
+    window.open('/api/contacts/export', '_blank');
+    triggerToast('Downloading contacts CSV...');
+  };
+
+  const handleImportCSV = async (csvContent: string) => {
+    try {
+      const res = await fetch('/api/contacts/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: csvContent })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const contactsRes = await fetch('/api/contacts');
+        if (contactsRes.ok) {
+          const updatedContacts = await contactsRes.json();
+          setContacts(updatedContacts);
+        }
+        triggerToast(data.message || 'Contacts imported successfully!');
+      } else {
+        const errData = await res.json();
+        triggerToast(errData.error || 'Failed to import CSV.');
+      }
+    } catch (err) {
+      triggerToast('Error connecting to backend for import.');
+    }
   };
 
   return (
@@ -381,6 +546,8 @@ function App() {
                 }}
                 onDeleteContact={handleDeleteContact}
                 onPreFillWishCreator={handlePreFillWishCreator}
+                onImportCSV={handleImportCSV}
+                onExportCSV={handleExportCSV}
               />
             )}
 
@@ -424,10 +591,17 @@ function App() {
             {activeTab === 'History' && (
               <History
                 history={history}
-                onClearHistory={() => {
+                onClearHistory={async () => {
                   if (window.confirm('Are you sure you want to clear your entire history?')) {
                     setHistory([]);
                     triggerToast('Archive cleared.');
+                    try {
+                      await fetch('/api/history', {
+                        method: 'DELETE'
+                      });
+                    } catch (err) {
+                      console.warn('Backend offline, history cleared locally.');
+                    }
                   }
                 }}
                 triggerToast={triggerToast}
@@ -437,7 +611,18 @@ function App() {
             {activeTab === 'Settings' && (
               <Settings
                 settings={settings}
-                onSaveSettings={(s) => setSettings(s)}
+                onSaveSettings={async (s) => {
+                  setSettings(s);
+                  try {
+                    await fetch('/api/settings', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(s)
+                    });
+                  } catch (err) {
+                    console.warn('Backend offline, settings saved locally.');
+                  }
+                }}
                 triggerToast={triggerToast}
               />
             )}

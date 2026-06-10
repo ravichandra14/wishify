@@ -51,18 +51,33 @@ export const CreateWish: React.FC<CreateWishProps> = ({
   const [cardTextColor, setCardTextColor] = useState('#FF4F9A');
   const [isGeneratingCardText, setIsGeneratingCardText] = useState(false);
 
-  const handleGenerateCardText = () => {
+  const handleGenerateCardText = async () => {
     if (!name) {
       triggerToast('Please provide a recipient name first.');
       return;
     }
     setIsGeneratingCardText(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/wishes/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, relationship, interests, tone, length })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCardBody(data.wish);
+        triggerToast('AI card text generated successfully! ✨');
+      } else {
+        throw new Error('Server returned an error');
+      }
+    } catch (err) {
+      console.warn('Backend offline or failed, falling back to local template.');
       const wish = generateMockWish(name, relationship, interests, tone, length);
       setCardBody(wish);
+      triggerToast('Local card text generated successfully! ✨');
+    } finally {
       setIsGeneratingCardText(false);
-      triggerToast('AI card text generated successfully! ✨');
-    }, 1000);
+    }
   };
 
   // Generator engine state
@@ -143,8 +158,8 @@ export const CreateWish: React.FC<CreateWishProps> = ({
     }
   }, [cardTemplate]);
 
-  // Simulated AI Generator
-  const handleGenerate = () => {
+  // Simulated AI Generator & Backend API Connector
+  const handleGenerate = async () => {
     if (!name) {
       triggerToast('Please provide a recipient name first.');
       return;
@@ -172,24 +187,52 @@ export const CreateWish: React.FC<CreateWishProps> = ({
       }
     }, 400);
 
-    setTimeout(() => {
+    try {
+      let wish = '';
+      if (wishType === 'Written') {
+        clearInterval(interval);
+        wish = writtenText || `Happy Birthday, ${name}! Wishing you all the best!`;
+      } else {
+        const response = await fetch('/api/wishes/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, relationship, interests, tone, length })
+        });
+        
+        clearInterval(interval);
+        if (response.ok) {
+          const data = await response.json();
+          wish = data.wish;
+        } else {
+          throw new Error('API failed');
+        }
+      }
+
+      if (wishType === 'Greeting Card') {
+        setCardBody(wish);
+      }
+      setGeneratedResult(wish);
+      setEditedResultText(wish);
+      triggerToast('Generation complete! Sparked with AI ✨');
+    } catch (err) {
+      console.warn('Backend AI generation offline, falling back to local template.');
       clearInterval(interval);
       let wish = '';
       if (wishType === 'Written') {
         wish = writtenText || `Happy Birthday, ${name}! Wishing you all the best!`;
-      } else if (wishType === 'AI Wish') {
-        wish = generateMockWish(name, relationship, interests, tone, length);
       } else {
-        // Greeting Card text generation
-        wish = cardBody || generateMockWish(name, relationship, interests, tone, length);
+        wish = generateMockWish(name, relationship, interests, tone, length);
+      }
+      
+      if (wishType === 'Greeting Card') {
         setCardBody(wish);
       }
-
       setGeneratedResult(wish);
       setEditedResultText(wish);
+      triggerToast('Generation complete! Fallback templates loaded ✨');
+    } finally {
       setIsGenerating(false);
-      triggerToast('Generation complete! Sparked with AI ✨');
-    }, 2000);
+    }
   };
 
   // Trigger download of greeting card as PNG using Hidden Canvas

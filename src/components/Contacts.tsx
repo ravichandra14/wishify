@@ -9,6 +9,8 @@ interface ContactsProps {
   onOpenEditContact: (contact: Contact) => void;
   onDeleteContact: (id: string) => void;
   onPreFillWishCreator: (contact: Contact) => void;
+  onImportCSV: (csvText: string) => void;
+  onExportCSV: () => void;
 }
 
 export const Contacts: React.FC<ContactsProps> = ({
@@ -16,7 +18,9 @@ export const Contacts: React.FC<ContactsProps> = ({
   onOpenAddContact,
   onOpenEditContact,
   onDeleteContact,
-  onPreFillWishCreator
+  onPreFillWishCreator,
+  onImportCSV,
+  onExportCSV
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedContactId, setExpandedContactId] = useState<string | null>(null);
@@ -28,6 +32,21 @@ export const Contacts: React.FC<ContactsProps> = ({
     } else {
       setExpandedContactId(id);
     }
+  };
+
+  const handleImportCSVChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        onImportCSV(text);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset input selection
   };
 
   // Filter contacts based on search query
@@ -63,8 +82,8 @@ export const Contacts: React.FC<ContactsProps> = ({
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="page-actions">
-        <div className="search-input-wrapper">
+      <div className="page-actions" style={{ display: 'flex', gap: '1rem', width: '100%', flexWrap: 'wrap' }}>
+        <div className="search-input-wrapper" style={{ flex: 1, minWidth: '250px' }}>
           <Search size={18} />
           <input 
             type="text" 
@@ -73,6 +92,28 @@ export const Contacts: React.FC<ContactsProps> = ({
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button 
+            type="button"
+            className="btn-secondary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
+            onClick={onExportCSV}
+          >
+            Download CSV
+          </button>
+          <label 
+            className="btn-secondary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer', margin: 0 }}
+          >
+            Upload CSV
+            <input 
+              type="file" 
+              accept=".csv" 
+              onChange={handleImportCSVChange} 
+              style={{ display: 'none' }} 
+            />
+          </label>
         </div>
       </div>
 
