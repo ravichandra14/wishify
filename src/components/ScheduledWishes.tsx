@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Edit2, Clock, Mail, MessageCircle } from 'lucide-react';
+import { Trash2, Edit2, Clock } from 'lucide-react';
 import type { ScheduledWish } from '../utils/wishGenerator';
 
 interface ScheduledWishesProps {
@@ -15,13 +15,6 @@ export const ScheduledWishes: React.FC<ScheduledWishesProps> = ({
   onOpenReschedule,
   triggerToast
 }) => {
-  const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case 'Email': return <Mail size={16} style={{ color: 'var(--primary-pink)' }} />;
-      case 'Message': return <MessageCircle size={16} style={{ color: '#3B82F6' }} />;
-      default: return <Clock size={16} />;
-    }
-  };
 
   const getStatusClass = (status: string) => {
     switch (status.toLowerCase()) {
@@ -75,7 +68,6 @@ export const ScheduledWishes: React.FC<ScheduledWishesProps> = ({
                 <tr>
                   <th>Recipient</th>
                   <th>Wish Type</th>
-                  <th>Channel</th>
                   <th>Scheduled Date</th>
                   <th>Scheduled Time</th>
                   <th>Status</th>
@@ -98,12 +90,6 @@ export const ScheduledWishes: React.FC<ScheduledWishesProps> = ({
                       }}>
                         {wish.wishType}
                       </span>
-                    </td>
-                    <td>
-                      <div className="channel-tag">
-                        {getChannelIcon(wish.channel)}
-                        <span>{wish.channel}</span>
-                      </div>
                     </td>
                     <td>{new Date(wish.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
                     <td>{wish.time} <span style={{ fontSize: '0.75rem', color: 'var(--secondary-text)' }}>({wish.timezone.split(' ')[0]})</span></td>

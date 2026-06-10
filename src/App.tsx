@@ -92,6 +92,11 @@ function App() {
     return saved ? JSON.parse(saved) : DEFAULT_HISTORY;
   });
 
+  const [deliveryLogs, setDeliveryLogs] = useState<any[]>(() => {
+    const saved = localStorage.getItem('wishify_delivery_logs');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('wishify_settings');
     return saved ? JSON.parse(saved) : {
@@ -154,6 +159,7 @@ function App() {
         if (historyRes.ok) {
           const historyData = await historyRes.json();
           setHistory(historyData.history || []);
+          setDeliveryLogs(historyData.logs || []);
         }
         
         const settingsRes = await fetch('/api/settings');
@@ -167,6 +173,10 @@ function App() {
     };
     
     fetchData();
+
+    // Poll for backend updates every 15 seconds to keep dashboard / history synchronized
+    const interval = setInterval(fetchData, 15000);
+    return () => clearInterval(interval);
   }, [isLoggedIn]);
 
   // Save states to local storage on modification
@@ -181,6 +191,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('wishify_history', JSON.stringify(history));
   }, [history]);
+
+  useEffect(() => {
+    localStorage.setItem('wishify_delivery_logs', JSON.stringify(deliveryLogs));
+  }, [deliveryLogs]);
 
   useEffect(() => {
     localStorage.setItem('wishify_settings', JSON.stringify(settings));
@@ -524,6 +538,8 @@ function App() {
                 contacts={contacts}
                 scheduledWishes={scheduledWishes}
                 historyCount={history.length}
+                userName={settings.userName}
+                deliveryLogs={deliveryLogs}
                 onNavigate={(tab: any) => setActiveTab(tab)}
                 onOpenAddContact={() => {
                   setEditingContact(undefined);

@@ -140,7 +140,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [date, setDate] = useState(initialDate || '');
   const [time, setTime] = useState(initialTime || '09:00');
   const [timezone, setTimezone] = useState(initialTimezone || 'Asia/Kolkata (GMT+5:30)');
-  const [channel, setChannel] = useState<'Email' | 'Message'>(initialChannel || 'Email');
+  const [channel, setChannel] = useState<'Email'>('Email');
 
   useEffect(() => {
     if (isOpen) {
@@ -148,9 +148,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         setDate(initialDate || '');
         setTime(initialTime || '09:00');
         setTimezone(initialTimezone || 'Asia/Kolkata (GMT+5:30)');
-        setChannel(initialChannel || 'Email');
+        setChannel('Email');
       } else {
-        // Set default date to tomorrow or contact's bday if possible
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setDate(tomorrow.toISOString().split('T')[0]);
@@ -180,7 +179,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       messageContent,
       cardConfig
     });
-    triggerToast(`Wish successfully scheduled via ${channel}!`);
+    triggerToast(`Wish successfully scheduled via Email!`);
     onClose();
   };
 
@@ -194,25 +193,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           </div>
           <div className="modal-body">
             <p style={{ color: 'var(--secondary-text)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-              Schedule this wish for <strong>{recipientName}</strong>. Wishify will automatically queue and send it.
+              Schedule this wish for <strong>{recipientName}</strong>. Wishify will automatically queue and send it via Email.
             </p>
-
-            <div className="form-group">
-              <label>Delivery Channel</label>
-              <div className="form-radio-group">
-                {(['Email', 'Message'] as const).map(ch => (
-                  <div
-                    key={ch}
-                    className={`form-radio-card ${channel === ch ? 'active' : ''}`}
-                    onClick={() => setChannel(ch)}
-                  >
-                    {ch === 'Email' && <Mail size={18} />}
-                    {ch === 'Message' && <MessageCircle size={18} />}
-                    <span>{ch}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             <div className="form-group">
               <label>Scheduled Date</label>

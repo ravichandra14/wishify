@@ -49,15 +49,17 @@ export const Contacts: React.FC<ContactsProps> = ({
     e.target.value = ''; // Reset input selection
   };
 
-  // Filter contacts based on search query
-  const filteredContacts = contacts.filter(contact => {
-    const query = searchQuery.toLowerCase();
-    return (
-      contact.name.toLowerCase().includes(query) ||
-      contact.relationship.toLowerCase().includes(query) ||
-      (contact.interests && contact.interests.toLowerCase().includes(query))
-    );
-  });
+  // Filter and sort contacts based on search query and upcoming birthdays (days remaining)
+  const filteredContacts = contacts
+    .filter(contact => {
+      const query = searchQuery.toLowerCase();
+      return (
+        contact.name.toLowerCase().includes(query) ||
+        contact.relationship.toLowerCase().includes(query) ||
+        (contact.interests && contact.interests.toLowerCase().includes(query))
+      );
+    })
+    .sort((a, b) => getDaysRemaining(a.birthday) - getDaysRemaining(b.birthday));
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
@@ -82,8 +84,8 @@ export const Contacts: React.FC<ContactsProps> = ({
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="page-actions" style={{ display: 'flex', gap: '1rem', width: '100%', flexWrap: 'wrap' }}>
-        <div className="search-input-wrapper" style={{ flex: 1, minWidth: '250px' }}>
+      <div className="page-actions" style={{ display: 'flex', gap: '1rem', width: '100%', flexWrap: 'wrap', alignItems: 'center', maxWidth: 'none' }}>
+        <div className="search-input-wrapper" style={{ flex: 1, minWidth: '250px', height: '42px' }}>
           <Search size={18} />
           <input 
             type="text" 
@@ -91,20 +93,41 @@ export const Contacts: React.FC<ContactsProps> = ({
             className="search-input"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            style={{ height: '42px' }}
           />
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button 
             type="button"
             className="btn-secondary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem', 
+              fontWeight: 700, 
+              padding: '0.65rem 1.25rem', 
+              fontSize: '0.9rem', 
+              height: '42px',
+              boxSizing: 'border-box' 
+            }}
             onClick={onExportCSV}
           >
             Download CSV
           </button>
           <label 
             className="btn-secondary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer', margin: 0 }}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem', 
+              fontWeight: 700, 
+              cursor: 'pointer', 
+              margin: 0, 
+              padding: '0.65rem 1.25rem', 
+              fontSize: '0.9rem', 
+              height: '42px',
+              boxSizing: 'border-box' 
+            }}
           >
             Upload CSV
             <input 
